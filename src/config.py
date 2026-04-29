@@ -1,5 +1,6 @@
 # src/config.py
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from functools import lru_cache
 from typing import Optional
 
@@ -48,10 +49,14 @@ class Settings(BaseSettings):
     # Caching
     CACHE_TTL_SECONDS: int = 86400
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()

@@ -1,8 +1,10 @@
 # src/main.py
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.api.v1.router import router as v1_router
+from src.core.exceptions import CodeToDocsError, RateLimitExceeded
 
 settings = get_settings()
 
@@ -25,6 +27,20 @@ app.add_middleware(
 
 # Include routers
 app.include_router(v1_router, prefix=settings.API_V1_PREFIX)
+
+@app.exception_handler(CodeToDocsError)
+async def code_to_docs_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=400,
+        content={"error": exc.__class__.__name__, "message": str(exc)}
+    )
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"error": "RATE_LIMIT_EXCEEDED", "message": str(exc)}
+    )
 
 @app.get("/")
 async def root():

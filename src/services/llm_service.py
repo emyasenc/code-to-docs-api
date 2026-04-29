@@ -1,4 +1,4 @@
-# src/services/llm_service.py (FIXED)
+# src/services/llm_service.py
 import httpx
 import logging
 from typing import Optional
@@ -12,7 +12,7 @@ class LLMService:
     
     def __init__(self):
         self.api_key = settings.GROQ_API_KEY
-        self.model = "llama-3.3-70b-versatile"  # Updated model name
+        self.model = "llama-3.3-70b-versatile"
         self.base_url = "https://api.groq.com/openai/v1"
     
     async def generate_readme(self, repo_structure: dict, repo_name: str) -> str:
@@ -21,12 +21,24 @@ class LLMService:
         if not self.api_key:
             return "⚠️ No Groq API key configured. Add GROQ_API_KEY to .env"
         
-        # Build prompt with repo info
+        # Get directory tree from the structure
+        directory_tree = repo_structure.get('directory_tree', 'No directory structure available')
+        
+        # Limit tree size (first 2000 chars to avoid huge prompts)
+        if len(directory_tree) > 2000:
+            directory_tree = directory_tree[:2000] + "\n... (truncated)"
+        
+        # Build files list
         files_list = ""
         for file in repo_structure.get('files', [])[:20]:
             files_list += f"- {file['path']}\n"
         
         prompt = f"""Generate a professional README.md for a GitHub repository called "{repo_name}".
+
+Repository Structure (directory tree):
+
+{directory_tree}
+
 
 Repository Info:
 - Languages: {', '.join(repo_structure.get('languages', []))}
@@ -35,17 +47,18 @@ Repository Info:
 
 Key Files:
 {files_list}
-
-Generate a complete README.md with:
+Generate a complete README.md with the following sections:
 1. Project Title (based on repo name)
-2. Description of what this project does
+2. Description
 3. Features
 4. Tech Stack
-5. Installation instructions
-6. Usage examples
-7. API endpoints (if applicable)
+5. **Project Structure** (use the directory tree above, format it as a code block)
+6. Installation instructions
+7. Usage examples
+8. Contributing
+9. License
 
-Make it professional and specific."""
+IMPORTANT: Include the actual directory tree in the "Project Structure" section. Make it professional and specific to this repository."""
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
@@ -58,11 +71,11 @@ Make it professional and specific."""
                     json={
                         "model": self.model,
                         "messages": [
-                            {"role": "system", "content": "You are an expert technical writer. Generate clean, professional documentation."},
+                            {"role": "system", "content": "You are an expert technical writer. Generate clean, professional documentation. ALWAYS include the provided directory tree in a 'Project Structure' section as a code block."},
                             {"role": "user", "content": prompt}
                         ],
                         "temperature": 0.3,
-                        "max_tokens": 1500
+                        "max_tokens": 2000
                     }
                 )
                 
